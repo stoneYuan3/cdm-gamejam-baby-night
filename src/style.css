@@ -11,6 +11,12 @@ body {
   background: var(--letterbox-bg);
 }
 
+/* Author `display` rules (e.g. flex) would otherwise override the UA's
+   [hidden] rule, and scene.ts toggles visibility via `el.hidden`. */
+[hidden] {
+  display: none !important;
+}
+
 #game-frame {
   position: absolute;
   aspect-ratio: 1920/1080;
@@ -28,15 +34,27 @@ body {
    to be replaced by serial-PNG sprites. Positions are plain design pixels.
    --------------------------------------------------------------------------- */
 
+/* Oversized by more than SHAKE_MAX (scene.ts) so shaking never exposes an
+   edge. The image itself (room-closed / room-open) is set by renderRoom. */
 .room {
+  position: absolute;
+  inset: -40px;
+  background: center / cover no-repeat;
+  will-change: transform;
+}
+
+/* Red dread that builds as the monster closes in; --danger is 0..1. */
+.room::after {
+  content: '';
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    circle at 50% 78%,
-    #2c3350 0%,
-    #141828 55%,
-    #070910 100%
+    circle at 50% 45%,
+    rgba(170, 10, 40, 0.35) 0%,
+    rgba(90, 0, 20, 0.85) 100%
   );
+  opacity: calc(var(--danger, 0) * 0.9);
+  transition: opacity 0.3s linear;
 }
 
 .monster {

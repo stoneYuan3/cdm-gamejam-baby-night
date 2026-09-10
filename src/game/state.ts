@@ -20,6 +20,7 @@ export interface GameState {
   threat: {
     active: boolean
     proximity: number // 0 = far away, 1 = reaches the baby
+    approachTime: number // this monster's seconds to reach the baby, rolled on arrival
     nextThreatIn: number
   }
   call: {
@@ -45,7 +46,8 @@ function freshState(phase: Phase): GameState {
     threat: {
       active: false,
       proximity: 0,
-      nextThreatIn: config.firstThreatDelay,
+      approachTime: randomIn(config.monsterApproachTime),
+      nextThreatIn: randomIn(config.firstThreatDelay),
     },
     call: {
       presses: 0,
@@ -57,6 +59,11 @@ function freshState(phase: Phase): GameState {
       available: true,
     },
   }
+}
+
+/** A uniformly random number within a config range, e.g. `{ min: 4, max: 8 }`. */
+export function randomIn(range: { min: number; max: number }): number {
+  return range.min + Math.random() * (range.max - range.min)
 }
 
 /** The title screen the game boots into and returns to after a result. */

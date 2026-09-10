@@ -2,6 +2,11 @@ import { config } from '../game/config.ts'
 import type { GameState } from '../game/state.ts'
 
 const PRESS_FLASH = 0.15 // seconds the baby reacts to a press
+const SHAKE_MAX = 24 // px of room shake as the monster reaches the baby (see .room inset)
+
+// BASE_URL keeps these public/ paths valid if the build is served from a subfolder.
+const ROOM_CLOSED = `${import.meta.env.BASE_URL}art/room/room-closed.png`
+const ROOM_OPEN = `${import.meta.env.BASE_URL}art/room/room-open.png`
 
 export interface Scene {
   render(state: GameState, now: number): void
@@ -29,6 +34,7 @@ export function createScene(frame: HTMLElement): Scene {
     <div class="debug"></div>
   `
 
+  const room = frame.querySelector<HTMLElement>('.room')!
   const monster = frame.querySelector<HTMLElement>('.monster')!
   const baby = frame.querySelector<HTMLElement>('.baby')!
   const introAnim = frame.querySelector<HTMLElement>('.intro-anim')!
@@ -56,8 +62,12 @@ export function createScene(frame: HTMLElement): Scene {
 
   debug.hidden = !config.debugOverlay
 
+  // Preload, so the first time the door opens it doesn't flash an empty frame.
+  new Image().src = ROOM_OPEN
+
   return {
     render(state, now) {
+      renderRoom(room, state, now)
       renderMonster(monster, state)
       renderBaby(baby, state, now)
       renderIntro(
@@ -71,6 +81,26 @@ export function createScene(frame: HTMLElement): Scene {
       }
     },
   }
+}
+
+function renderRoom(el: HTMLElement, state: GameState, now: number): void {
+  const { active, proximity } = state.threat
+  const danger = active && state.phase === 'playing' ? proximity : 0
+
+  // The door stands open while the parents come in (intro) and while a monster approaches.
+  const open =
+    (state.phase === 'intro' && state.intro.step === 'animation') ||
+    (state.phase === 'playing' && active)
+  el.style.backgroundImage = `url("${open ? ROOM_OPEN : ROOM_CLOSED}")`
+
+  // Squared: a faint tremor early in the approach, violent right at the end.
+  const amp = SHAKE_MAX * danger * danger
+  // Layered sines instead of Math.random() - the same rumble at any frame rate.
+  const x = amp * (0.6 * Math.sin(now * 61) + 0.4 * Math.sin(now * 83))
+  const y = amp * (0.6 * Math.sin(now * 71) + 0.4 * Math.sin(now * 47))
+
+  el.style.transform = `translate(${x}px, ${y}px)`
+  el.style.setProperty('--danger', String(danger))
 }
 
 function renderMonster(el: HTMLElement, state: GameState): void {

@@ -1,6 +1,7 @@
 import { config } from './config.ts'
 import {
   createState,
+  randomIn,
   startIntro,
   type GameState,
   type IntroStep,
@@ -159,12 +160,12 @@ function answerCall(state: GameState): void {
 
   state.threat.active = false
   state.threat.proximity = 0
-  state.threat.nextThreatIn = config.threatInterval
+  state.threat.nextThreatIn = randomIn(config.threatInterval)
 }
 
 function updateThreat(state: GameState, dt: number): void {
   if (state.threat.active) {
-    state.threat.proximity += dt / config.monsterApproachTime
+    state.threat.proximity += dt / state.threat.approachTime
 
     if (state.threat.proximity >= 1) {
       state.threat.proximity = 1
@@ -178,6 +179,7 @@ function updateThreat(state: GameState, dt: number): void {
   if (state.threat.nextThreatIn <= 0) {
     state.threat.active = true
     state.threat.proximity = 0
+    state.threat.approachTime = randomIn(config.monsterApproachTime)
     resetCall(state)
   }
 }
