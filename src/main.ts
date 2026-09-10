@@ -1,4 +1,9 @@
 import './style.css'
+import { createInput } from './engine/input.ts'
+import { startLoop } from './engine/loop.ts'
+import { createState } from './game/state.ts'
+import { tick } from './game/update.ts'
+import { createScene } from './ui/scene.ts'
 import { setupViewport } from './viewport.ts'
 
 const DESIGN_WIDTH = 1920
@@ -10,3 +15,12 @@ document.querySelector<HTMLDivElement>('#app')!.outerHTML =
 const gameFrame = document.querySelector<HTMLDivElement>('#game-frame')!
 
 setupViewport(gameFrame, DESIGN_WIDTH, DESIGN_HEIGHT)
+
+const scene = createScene(gameFrame)
+const input = createInput()
+let state = createState()
+
+startLoop((dt, now) => {
+  state = tick(state, input.drainCalls(), input.takeRestart(), dt)
+  scene.render(state, now)
+})

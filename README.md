@@ -20,6 +20,11 @@ survive until dawn.
 - Other hazard/interaction types (e.g. hunger) are planned as additional scenarios after
   the core monster/call-for-help loop is working — not yet implemented.
 
+Screen flow: **title → intro → playing → won/lost → title**. The intro is a safe rehearsal
+of the call — presses are judged for pace exactly as they are during the night, but a
+too-fast one costs no parent patience — followed by a placeholder animation and a
+description that fades in, holds, and fades out before the night begins.
+
 ## Viewport: fixed 16:9 letterboxed frame
 
 The game's art is authored at a fixed 16:9 aspect ratio, so instead of writing responsive
