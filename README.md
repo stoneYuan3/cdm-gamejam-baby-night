@@ -2,6 +2,24 @@
 
 Pure TypeScript, DOM-based web game (no canvas, no game-engine libraries) built with Vite.
 
+Built for a hackathon-style game jam, due **2026-09-11 1pm**.
+
+## Game concept
+
+Somewhat similar to Five Nights at Freddy's. Art is 3D environment + 2D characters,
+animated as serial PNG sequences. The baby is asleep and having a nightmare, trying to
+survive until dawn.
+
+- In the nightmare, the baby may see a monster approaching.
+- To call for help from the parents (in the dream), the player presses the space key 5
+  times — but the *pace* of presses matters, not just the count:
+  - **Too fast:** the baby makes loud, noisy cries that eventually annoy the parents, so
+    they stop coming → lose.
+  - **Too slow:** the monster reaches the baby before help arrives → lose.
+  - **Steady pace, kept up until dawn:** win.
+- Other hazard/interaction types (e.g. hunger) are planned as additional scenarios after
+  the core monster/call-for-help loop is working — not yet implemented.
+
 ## Viewport: fixed 16:9 letterboxed frame
 
 The game's art is authored at a fixed 16:9 aspect ratio, so instead of writing responsive
