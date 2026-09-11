@@ -4,6 +4,10 @@ import type { GameState } from '../game/state.ts'
 // before it is snapped back into place.
 const MAX_DRIFT = 0.1
 
+// Everything but footsteps is turned down so footsteps reads louder in the mix
+// (an <audio> element can't go above 1.0, so relative volume is the only lever).
+const QUIET_VOLUME = 0.75
+
 const AMBIENCE = `${import.meta.env.BASE_URL}audio/ambienceSCARY.ogg`
 const MONSTER_SEQ = `${import.meta.env.BASE_URL}audio/animationseq.ogg`
 const BABY_AUDIO = `${import.meta.env.BASE_URL}audio/baby/`
@@ -20,7 +24,7 @@ export function createSound(): Sound {
   const ambience = load(AMBIENCE)
   ambience.loop = true
   const monsterSeq = load(MONSTER_SEQ)
-  const footsteps = load(`${BABY_AUDIO}footsteps.mp3`)
+  const footsteps = load(`${BABY_AUDIO}footsteps.mp3`, 1)
 
   const doorOpen = load(`${BABY_AUDIO}dooropen.mp3`)
   const doorClose = load(`${BABY_AUDIO}doorclose.mp3`)
@@ -104,11 +108,12 @@ export function createSound(): Sound {
   }
 }
 
-function load(src: string): HTMLAudioElement {
+function load(src: string, volume = QUIET_VOLUME): HTMLAudioElement {
   const audio = new Audio(src)
   audio.preload = 'auto'
   // Keeps the stretched monster sequence at its authored pitch.
   audio.preservesPitch = true
+  audio.volume = volume
   return audio
 }
 
