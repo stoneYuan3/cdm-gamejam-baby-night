@@ -3,7 +3,7 @@ export const config = {
   nightDuration: 45, // seconds of survival needed to reach dawn
   // Calm-time ranges in seconds, rolled fresh each time so monsters can't be timed.
   firstThreatDelay: { min: 3, max: 5 }, // before the first monster
-  threatInterval: { min: 3, max: 5 }, // between monsters
+  threatInterval: { min: 3, max: 6 }, // between monsters
   monsterApproachTime: { min: 3, max:5 }, // seconds from monster appearing to reaching the baby
 
   callPresses: 5, // space presses needed to summon the parents
