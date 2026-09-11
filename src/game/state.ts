@@ -3,8 +3,8 @@ import { config } from './config.ts'
 export type Phase = 'title' | 'intro' | 'playing' | 'won' | 'lost'
 export type LoseReason = 'monster' | 'abandoned'
 
-/** Steps of the intro: practise the call, watch help arrive, read the setup. */
-export type IntroStep = 'prompt' | 'animation' | 'description'
+/** Steps of the intro: practise the call, watch help arrive, read the setup, fade to black. */
+export type IntroStep = 'prompt' | 'animation' | 'description' | 'fadeOut'
 
 export type PressQuality = 'good' | 'fast' | 'slow'
 

@@ -62,6 +62,13 @@ function updateIntro(state: GameState, calls: number[], dt: number): void {
 
     case 'description':
       if (state.intro.stepTime >= introDescriptionTime()) {
+        setIntroStep(state, 'fadeOut')
+      }
+      return
+
+    case 'fadeOut':
+      // Presses aren't read here, so a mash during the fade is simply dropped.
+      if (state.intro.stepTime >= config.stageFadeTime) {
         resetCall(state)
         setPhase(state, 'playing')
       }
@@ -75,20 +82,26 @@ export function introDescriptionTime(): number {
 }
 
 function updatePlaying(state: GameState, calls: number[], dt: number): void {
-  state.timeOfNight += dt
+  // The night fades in from black first; none of that counts as night, and
+  // presses during it are dropped. Only the post-fade slice of the crossing
+  // frame is handed on, so no fade time leaks into the clock.
+  const live = Math.min(dt, state.phaseTime - config.stageFadeTime)
+  if (live <= 0) return
+
+  state.timeOfNight += live
   if (state.timeOfNight >= config.nightDuration) {
     setPhase(state, 'won')
     return
   }
 
-  updateParents(state, dt)
+  updateParents(state, live)
 
   // Crying only means anything while something is actually threatening the baby.
   if (state.threat.active && updateCall(state, calls, true)) {
     answerCall(state)
   }
 
-  updateThreat(state, dt)
+  updateThreat(state, live)
 }
 
 function updateParents(state: GameState, dt: number): void {
