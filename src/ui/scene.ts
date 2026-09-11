@@ -263,7 +263,7 @@ function renderIntro(els: IntroEls, state: GameState): void {
   }
 
   // The description fades in, holds, then fades back out; the step ends when
-  // the fade-out does (see introDescriptionTime in update.ts).
+  // the fade-out does (see introDescriptionTime in game/update/intro.ts).
   if (inIntro && step === 'description') {
     const held = state.intro.stepTime < config.introTextFadeIn + config.introTextHold
     els.desc.classList.toggle('visible', held)

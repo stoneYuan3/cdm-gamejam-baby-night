@@ -1,12 +1,9 @@
+import { config } from '../game/config.ts'
 import type { GameState } from '../game/state.ts'
 
 // Seconds the monster sequence may wander from the monster's actual progress
 // before it is snapped back into place.
 const MAX_DRIFT = 0.1
-
-// Everything but footsteps is turned down so footsteps reads louder in the mix
-// (an <audio> element can't go above 1.0, so relative volume is the only lever).
-const QUIET_VOLUME = 0.75
 
 const AMBIENCE = `${import.meta.env.BASE_URL}audio/ambienceSCARY.ogg`
 const MONSTER_SEQ = `${import.meta.env.BASE_URL}audio/animationseq.ogg`
@@ -21,19 +18,21 @@ export interface Sound {
  * game logic never touches audio.
  */
 export function createSound(): Sound {
-  const ambience = load(AMBIENCE)
+  const ambience = load(AMBIENCE, config.volume.ambience)
   ambience.loop = true
-  const monsterSeq = load(MONSTER_SEQ)
-  const footsteps = load(`${BABY_AUDIO}footsteps.mp3`, 1)
+  const monsterSeq = load(MONSTER_SEQ, config.volume.monsterSeq)
+  const footsteps = load(`${BABY_AUDIO}footsteps.mp3`, config.volume.footsteps)
 
-  const doorOpen = load(`${BABY_AUDIO}dooropen.mp3`)
-  const doorClose = load(`${BABY_AUDIO}doorclose.mp3`)
+  const doorOpen = load(`${BABY_AUDIO}dooropen.mp3`, config.volume.doorOpen)
+  const doorClose = load(`${BABY_AUDIO}doorclose.mp3`, config.volume.doorClose)
   // Parents leave shortly after arriving - chain the close off the open clip
   // ending rather than guessing a delay.
   doorOpen.addEventListener('ended', () => doorClose.play().catch(() => {}))
 
-  const cryGood = [1, 2, 3, 4].map((n) => load(`${BABY_AUDIO}babycry${n}.mp3`))
-  const cryMessedUp = load(`${BABY_AUDIO}babycry5.mp3`)
+  const cryGood = [1, 2, 3, 4].map((n) =>
+    load(`${BABY_AUDIO}babycry${n}.mp3`, config.volume.cryGood),
+  )
+  const cryMessedUp = load(`${BABY_AUDIO}babycry5.mp3`, config.volume.cryMessedUp)
 
   let lastPressAt = 0
   let wasThreatActive = false
@@ -68,8 +67,7 @@ export function createSound(): Sound {
       (state.phase === 'playing' && state.threat.active)
     if (!callMatters) return
 
-    const messedUp =
-      state.call.lastQuality === 'fast' || state.call.lastQuality === 'slow'
+    const messedUp = state.call.lastQuality === 'fast'
     const clip = messedUp
       ? cryMessedUp
       : cryGood[Math.floor(Math.random() * cryGood.length)]
@@ -108,7 +106,7 @@ export function createSound(): Sound {
   }
 }
 
-function load(src: string, volume = QUIET_VOLUME): HTMLAudioElement {
+function load(src: string, volume: number): HTMLAudioElement {
   const audio = new Audio(src)
   audio.preload = 'auto'
   // Keeps the stretched monster sequence at its authored pitch.

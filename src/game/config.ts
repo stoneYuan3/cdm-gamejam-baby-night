@@ -25,4 +25,17 @@ export const config = {
   stageFadeTime: 1, // seconds for the intro's fade to black and the night's fade back in
 
   debugOverlay: true, // dev-only readout; set false before submitting
+
+  // 0..1 per clip. An <audio> element can't go above 1.0, so relative volume
+  // is the only mixing lever - footsteps stays loudest, everything else is
+  // turned down so footsteps reads clearly over it.
+  volume: {
+    ambience: 0.75,
+    monsterSeq: 0.75,
+    footsteps: 1,
+    doorOpen: 0.75,
+    doorClose: 0.75,
+    cryGood: 0.3, // a normal-paced call
+    cryMessedUp: 1, // too-fast press - the louder, more shrieking cry
+  },
 }

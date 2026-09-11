@@ -168,6 +168,7 @@ body {
   color: #f2ecff;
   letter-spacing: 3px;
   text-align: center;
+  text-shadow: 0 2px 12px #000;
   opacity: 0;
   pointer-events: none;
   /* Durations come from config.ts via createScene - kept out of the DOM's
