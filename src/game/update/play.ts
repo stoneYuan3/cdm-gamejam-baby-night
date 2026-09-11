@@ -1,5 +1,5 @@
 import { config } from '../config.ts'
-import { randomIn, type GameState } from '../state.ts'
+import { randomIn, type AftermathStep, type GameState } from '../state.ts'
 import { resetCall, updateCall } from './call.ts'
 import { setPhase } from './ticker.ts'
 
@@ -23,7 +23,11 @@ export function updatePlaying(state: GameState, calls: number[], dt: number): vo
     answerCall(state)
   }
 
-  updateThreat(state, live)
+  if (state.aftermath.step !== 'none') {
+    updateAftermath(state, live)
+  } else {
+    updateThreat(state, live)
+  }
 }
 
 function updateParents(state: GameState, dt: number): void {
@@ -48,7 +52,7 @@ function answerCall(state: GameState): void {
 
   state.threat.active = false
   state.threat.proximity = 0
-  state.threat.nextThreatIn = randomIn(config.threatInterval)
+  setAftermathStep(state, 'monsterGone')
 }
 
 function updateThreat(state: GameState, dt: number): void {
@@ -70,4 +74,38 @@ function updateThreat(state: GameState, dt: number): void {
     state.threat.approachTime = randomIn(config.monsterApproachTime)
     resetCall(state)
   }
+}
+
+/**
+ * The monster vanishes in smoke, then a parent checks on the baby, before the
+ * calm countdown to the next monster starts. While either step is running,
+ * updatePlaying skips updateThreat entirely, which is what keeps that
+ * countdown frozen.
+ */
+function updateAftermath(state: GameState, dt: number): void {
+  state.aftermath.stepTime += dt
+
+  switch (state.aftermath.step) {
+    case 'monsterGone':
+      if (state.aftermath.stepTime >= config.monsterGoneTime) {
+        setAftermathStep(state, 'parentIn')
+      }
+      return
+
+    case 'parentIn':
+      if (state.aftermath.stepTime >= config.parentInTime) {
+        // Only now does the calm countdown to the next monster begin.
+        state.threat.nextThreatIn = randomIn(config.threatInterval)
+        setAftermathStep(state, 'none')
+      }
+      return
+
+    case 'none':
+      return
+  }
+}
+
+function setAftermathStep(state: GameState, step: AftermathStep): void {
+  state.aftermath.step = step
+  state.aftermath.stepTime = 0
 }

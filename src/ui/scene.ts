@@ -15,6 +15,20 @@ const DOOR_FRAMES = [1, 2, 3].map(
   (n) => `${import.meta.env.BASE_URL}art/room/tutorial/door%20open%20frame${n}.png`,
 )
 const FENCE = `${import.meta.env.BASE_URL}art/room/tutorial/fence.png`
+// The monster's own approach, baked into full-room frames (frame 18 ~= empty
+// room, frame 151 ~= monster at the baby) - room+monster together, same as
+// the door sequence, so there's no separate monster sprite to position.
+const MONSTER_FRAMES = Array.from({ length: 151 - 18 + 1 }, (_, i) =>
+  `${import.meta.env.BASE_URL}art/monster/Comp%201_${String(18 + i).padStart(5, '0')}.jpg`,
+)
+// Smoke plays over ROOM_OPEN as its own transparent layer on top of .room,
+// not a full-frame swap - see the .smoke element and renderSmoke.
+const SMOKE_FRAMES = [1, 2, 3].map(
+  (n) => `${import.meta.env.BASE_URL}art/room/smoke/Smoke_P1_f${n}.png`,
+)
+const PARENT_FRAMES = Array.from({ length: 24 }, (_, i) =>
+  `${import.meta.env.BASE_URL}art/room/parent/Comp%201_${100 + i}.png`,
+)
 
 const BABY_ART = `${import.meta.env.BASE_URL}art/baby/`
 
@@ -43,8 +57,9 @@ export interface Scene {
 export function createScene(frame: HTMLElement): Scene {
   frame.innerHTML = `
     <div class="room"></div>
+    <div class="smoke-bg"></div>
+    <div class="smoke"></div>
     <img class="intro-fence" src="${FENCE}" alt="">
-    <div class="monster"></div>
     <div class="baby"></div>
     <div class="intro-prompt">
       <p class="intro-line">press space 5 times to call for help</p>
@@ -59,7 +74,7 @@ export function createScene(frame: HTMLElement): Scene {
 
   const overlayBg = frame.querySelector<HTMLElement>('.overlay-bg')!
   const room = frame.querySelector<HTMLElement>('.room')!
-  const monster = frame.querySelector<HTMLElement>('.monster')!
+  const smoke = frame.querySelector<HTMLElement>('.smoke')!
   const baby = frame.querySelector<HTMLElement>('.baby')!
   const fence = frame.querySelector<HTMLElement>('.intro-fence')!
   const introPrompt = frame.querySelector<HTMLElement>('.intro-prompt')!
@@ -93,12 +108,25 @@ export function createScene(frame: HTMLElement): Scene {
   // CSS background-image instead paints nothing until the new PNG is decoded,
   // flashing the frame's background colour through for a frame or two.
   const roomImgs = new Map(
-    [ROOM_CLOSED, ROOM_OPEN, ...DOOR_FRAMES].map((src) => {
+    [ROOM_CLOSED, ROOM_OPEN, ...DOOR_FRAMES, ...MONSTER_FRAMES, ...PARENT_FRAMES].map((src) => {
       const img = document.createElement('img')
       img.className = 'room-img'
       img.src = src
       img.alt = ''
       room.append(img)
+      return [src, img] as const
+    }),
+  )
+
+  // Same layering technique as roomImgs, parented under .smoke instead so it
+  // paints as its own transparent layer above the room rather than replacing it.
+  const smokeImgs = new Map(
+    SMOKE_FRAMES.map((src) => {
+      const img = document.createElement('img')
+      img.className = 'room-img'
+      img.src = src
+      img.alt = ''
+      smoke.append(img)
       return [src, img] as const
     }),
   )
@@ -121,7 +149,7 @@ export function createScene(frame: HTMLElement): Scene {
   return {
     render(state, now) {
       renderRoom(room, roomImgs, state, now)
-      renderMonster(monster, state)
+      renderSmoke(smoke, smokeImgs, state)
 
       if (wasThreatActive && !state.threat.active && state.phase === 'playing') {
         answeredAt = now
@@ -181,20 +209,39 @@ function roomImage(state: GameState): string {
     }
   }
 
-  // The door stands open while a monster approaches.
-  return state.phase === 'playing' && state.threat.active ? ROOM_OPEN : ROOM_CLOSED
+  if (state.phase === 'playing') {
+    switch (state.aftermath.step) {
+      case 'monsterGone':
+        return ROOM_OPEN // the .smoke layer animates on top of this
+      case 'parentIn': {
+        const i = Math.floor(state.aftermath.stepTime / config.parentFrameTime)
+        return PARENT_FRAMES[Math.min(i, PARENT_FRAMES.length - 1)]
+      }
+      case 'none':
+        if (state.threat.active) {
+          const i = Math.round(state.threat.proximity * (MONSTER_FRAMES.length - 1))
+          return MONSTER_FRAMES[i]
+        }
+        return ROOM_CLOSED
+    }
+  }
+
+  return ROOM_CLOSED
 }
 
-function renderMonster(el: HTMLElement, state: GameState): void {
-  const { active, proximity } = state.threat
-  const visible = active && state.phase === 'playing'
+/** Transparent smoke overlay that plays over the room right as the monster vanishes. */
+function renderSmoke(
+  el: HTMLElement,
+  imgs: ReadonlyMap<string, HTMLElement>,
+  state: GameState,
+): void {
+  const active = state.phase === 'playing' && state.aftermath.step === 'monsterGone'
+  el.hidden = !active
+  if (!active) return
 
-  el.style.opacity = visible ? String(lerp(0.45, 1, proximity)) : '0'
-  el.style.transform = `translate(-50%, -50%) translateY(${lerp(
-    -180,
-    260,
-    proximity,
-  )}px) scale(${lerp(0.35, 1.7, proximity)})`
+  const i = Math.floor(state.aftermath.stepTime / config.smokeFrameTime)
+  const shown = SMOKE_FRAMES[Math.min(i, SMOKE_FRAMES.length - 1)]
+  for (const [src, img] of imgs) img.classList.toggle('shown', src === shown)
 }
 
 function renderBaby(
@@ -325,20 +372,18 @@ function renderFade(el: HTMLElement, state: GameState): void {
 }
 
 function debugText(state: GameState): string {
-  const { threat, call, parents } = state
+  const { threat, call, parents, aftermath } = state
   return [
     `phase ${state.phase}${state.phase === 'intro' ? ':' + state.intro.step : ''}`,
     `night ${state.timeOfNight.toFixed(1)}/${config.nightDuration}`,
-    threat.active
-      ? `monster ${threat.proximity.toFixed(2)}`
-      : `calm ${threat.nextThreatIn.toFixed(1)}`,
+    aftermath.step !== 'none'
+      ? `aftermath ${aftermath.step} ${aftermath.stepTime.toFixed(1)}`
+      : threat.active
+        ? `monster ${threat.proximity.toFixed(2)}`
+        : `calm ${threat.nextThreatIn.toFixed(1)}`,
     `presses ${call.presses}/${config.callPresses} ${call.lastQuality ?? '-'}`,
     `annoyance ${parents.annoyance.toFixed(2)}${parents.available ? '' : ' GONE'}`,
   ].join('   ')
-}
-
-function lerp(from: number, to: number, t: number): number {
-  return from + (to - from) * clamp01(t)
 }
 
 function clamp01(value: number): number {

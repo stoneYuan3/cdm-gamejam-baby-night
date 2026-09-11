@@ -73,17 +73,10 @@ body {
   transition: opacity 0.3s linear;
 }
 
-.monster {
+/* Sits above .room; its frames are .room-img layers too, just parented here. */
+.smoke {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 420px;
-  height: 560px;
-  border-radius: 210px 210px 40px 40px;
-  background: #12060f;
-  box-shadow: 0 0 120px 40px rgba(120, 0, 60, 0.45);
-  transition: opacity 0.25s linear;
-  will-change: transform, opacity;
+  inset: -40px;
 }
 
 .baby {

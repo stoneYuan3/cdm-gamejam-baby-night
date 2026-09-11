@@ -6,6 +6,9 @@ export type LoseReason = 'monster' | 'abandoned'
 /** Steps of the intro: practise the call, watch help arrive, read the setup, fade to black. */
 export type IntroStep = 'prompt' | 'animation' | 'description' | 'fadeOut'
 
+/** After a successful call: the monster vanishes in smoke, then a parent checks on the baby. */
+export type AftermathStep = 'none' | 'monsterGone' | 'parentIn'
+
 export type PressQuality = 'good' | 'fast' | 'slow'
 
 export interface GameState {
@@ -22,6 +25,10 @@ export interface GameState {
     proximity: number // 0 = far away, 1 = reaches the baby
     approachTime: number // this monster's seconds to reach the baby, rolled on arrival
     nextThreatIn: number
+  }
+  aftermath: {
+    step: AftermathStep
+    stepTime: number
   }
   call: {
     presses: number
@@ -48,6 +55,10 @@ function freshState(phase: Phase): GameState {
       proximity: 0,
       approachTime: randomIn(config.monsterApproachTime),
       nextThreatIn: randomIn(config.firstThreatDelay),
+    },
+    aftermath: {
+      step: 'none',
+      stepTime: 0,
     },
     call: {
       presses: 0,
