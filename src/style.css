@@ -99,7 +99,7 @@ body {
 /* The tutorial's cry-in-bed art is sized/cropped separately from the main
    game's OnFloor poses - its content sits differently in the source file. */
 .baby.intro {
-  background-position: center 586px;
+  background-position: center 571px;
   background-size: 54.69% auto;
 }
 
