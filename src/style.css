@@ -35,13 +35,28 @@ body {
    --------------------------------------------------------------------------- */
 
 /* Oversized by more than SHAKE_MAX (scene.ts) so shaking never exposes an
-   edge. The image itself (room-closed / room-open) is set by renderRoom. */
+   edge. The room's images are .room-img layers inside it, picked by renderRoom. */
 .room,
 .bg {
   position: absolute;
   inset: -40px;
   background: center / cover no-repeat;
   will-change: transform;
+}
+
+/* Hidden layers stay at opacity 0 rather than display:none, so they stay
+   decoded and a swap never has to wait on one. */
+.room-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.room-img.shown {
+  opacity: 1;
 }
 
 /* Red dread that builds as the monster closes in; --danger is 0..1. */
@@ -134,28 +149,13 @@ body {
   box-shadow: 0 0 24px 6px rgba(242, 236, 255, 0.5);
 }
 
-/* PLACEHOLDER: stands in for the "parents arrive" animation. */
-.intro-anim {
+/* Crib rail in the foreground of the intro, pinned to the bottom edge. */
+.intro-fence {
   position: absolute;
-  top: 340px;
-  left: 50%;
-  width: 520px;
-  height: 300px;
-  transform: translateX(-50%);
-  border-radius: 24px;
-  background: linear-gradient(120deg, #4a5a8f, #cbb7ff, #4a5a8f);
-  animation: intro-anim-sweep 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes intro-anim-sweep {
-  from {
-    opacity: 0.35;
-    transform: translateX(-50%) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1.05);
-  }
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  pointer-events: none;
 }
 
 .intro-desc {
@@ -218,6 +218,15 @@ body {
 .overlay.on-art .overlay-hint {
   color: #f2ecff;
   text-shadow: 0 2px 12px #000;
+}
+
+/* Black cut between intro and night; opacity set per frame by renderFade. */
+.fade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .debug {

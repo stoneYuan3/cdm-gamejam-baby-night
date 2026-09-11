@@ -8,6 +8,11 @@ const SHAKE_MAX = 24 // px of room shake as the monster reaches the baby (see .r
 const ROOM_CLOSED = `${import.meta.env.BASE_URL}art/room/room-closed.png`
 const ROOM_OPEN = `${import.meta.env.BASE_URL}art/room/room-open.png`
 const TITLE_ART = `${import.meta.env.BASE_URL}art/main.png`
+// Intro: the door opening as the parents arrive. The filenames contain spaces.
+const DOOR_FRAMES = [1, 2, 3].map(
+  (n) => `${import.meta.env.BASE_URL}art/room/tutorial/door%20open%20frame${n}.png`,
+)
+const FENCE = `${import.meta.env.BASE_URL}art/room/tutorial/fence.png`
 
 export interface Scene {
   render(state: GameState, now: number): void
@@ -23,9 +28,9 @@ export interface Scene {
 export function createScene(frame: HTMLElement): Scene {
   frame.innerHTML = `
     <div class="room"></div>
+    <img class="intro-fence" src="${FENCE}" alt="">
     <div class="monster"></div>
     <div class="baby"></div>
-    <div class="intro-anim"></div>
     <div class="intro-prompt">
       <p class="intro-line">press space 5 times to call for help</p>
       <div class="pips"></div>
@@ -33,6 +38,7 @@ export function createScene(frame: HTMLElement): Scene {
     <p class="intro-desc"></p>
     <div class="overlay-bg bg"></div>
     <div class="overlay"><p class="overlay-title"></p><p class="overlay-hint"></p></div>
+    <div class="fade"></div>
     <div class="debug"></div>
   `
 
@@ -40,13 +46,14 @@ export function createScene(frame: HTMLElement): Scene {
   const room = frame.querySelector<HTMLElement>('.room')!
   const monster = frame.querySelector<HTMLElement>('.monster')!
   const baby = frame.querySelector<HTMLElement>('.baby')!
-  const introAnim = frame.querySelector<HTMLElement>('.intro-anim')!
+  const fence = frame.querySelector<HTMLElement>('.intro-fence')!
   const introPrompt = frame.querySelector<HTMLElement>('.intro-prompt')!
   const introDesc = frame.querySelector<HTMLElement>('.intro-desc')!
   const pips = frame.querySelector<HTMLElement>('.pips')!
   const overlay = frame.querySelector<HTMLElement>('.overlay')!
   const overlayTitle = frame.querySelector<HTMLElement>('.overlay-title')!
   const overlayHint = frame.querySelector<HTMLElement>('.overlay-hint')!
+  const fade = frame.querySelector<HTMLElement>('.fade')!
   const debug = frame.querySelector<HTMLElement>('.debug')!
 
   // PLACEHOLDER COPY - rewrite once the story beat is settled.
@@ -67,19 +74,31 @@ export function createScene(frame: HTMLElement): Scene {
 
   overlayBg.style.backgroundImage = `url("${TITLE_ART}")`
 
-  // Preload, so the first time the door opens it doesn't flash an empty frame.
-  new Image().src = ROOM_OPEN
+  // Every room image is its own layer and only its opacity changes. Swapping a
+  // CSS background-image instead paints nothing until the new PNG is decoded,
+  // flashing the frame's background colour through for a frame or two.
+  const roomImgs = new Map(
+    [ROOM_CLOSED, ROOM_OPEN, ...DOOR_FRAMES].map((src) => {
+      const img = document.createElement('img')
+      img.className = 'room-img'
+      img.src = src
+      img.alt = ''
+      room.append(img)
+      return [src, img] as const
+    }),
+  )
 
   return {
     render(state, now) {
-      renderRoom(room, state, now)
+      renderRoom(room, roomImgs, state, now)
       renderMonster(monster, state)
       renderBaby(baby, state, now)
       renderIntro(
-        { anim: introAnim, prompt: introPrompt, desc: introDesc, pipEls },
+        { fence, prompt: introPrompt, desc: introDesc, pipEls },
         state,
       )
       renderOverlay(overlay, overlayBg, overlayTitle, overlayHint, state)
+      renderFade(fade, state)
 
       if (config.debugOverlay) {
         debug.textContent = debugText(state)
@@ -88,15 +107,17 @@ export function createScene(frame: HTMLElement): Scene {
   }
 }
 
-function renderRoom(el: HTMLElement, state: GameState, now: number): void {
+function renderRoom(
+  el: HTMLElement,
+  imgs: ReadonlyMap<string, HTMLElement>,
+  state: GameState,
+  now: number,
+): void {
   const { active, proximity } = state.threat
   const danger = active && state.phase === 'playing' ? proximity : 0
 
-  // The door stands open while the parents come in (intro) and while a monster approaches.
-  const open =
-    (state.phase === 'intro' && state.intro.step === 'animation') ||
-    (state.phase === 'playing' && active)
-  el.style.backgroundImage = `url("${open ? ROOM_OPEN : ROOM_CLOSED}")`
+  const shown = roomImage(state)
+  for (const [src, img] of imgs) img.classList.toggle('shown', src === shown)
 
   // Squared: a faint tremor early in the approach, violent right at the end.
   const amp = SHAKE_MAX * danger * danger
@@ -106,6 +127,26 @@ function renderRoom(el: HTMLElement, state: GameState, now: number): void {
 
   el.style.transform = `translate(${x}px, ${y}px)`
   el.style.setProperty('--danger', String(danger))
+}
+
+function roomImage(state: GameState): string {
+  if (state.phase === 'intro') {
+    switch (state.intro.step) {
+      case 'prompt':
+        return DOOR_FRAMES[0]
+      case 'animation': {
+        // Plays through once and stops on the last frame - no loop.
+        const i = Math.floor(state.intro.stepTime / config.introDoorFrameTime)
+        return DOOR_FRAMES[Math.min(i, DOOR_FRAMES.length - 1)]
+      }
+      case 'description':
+      case 'fadeOut':
+        return DOOR_FRAMES[DOOR_FRAMES.length - 1]
+    }
+  }
+
+  // The door stands open while a monster approaches.
+  return state.phase === 'playing' && state.threat.active ? ROOM_OPEN : ROOM_CLOSED
 }
 
 function renderMonster(el: HTMLElement, state: GameState): void {
@@ -134,7 +175,7 @@ function renderBaby(el: HTMLElement, state: GameState, now: number): void {
 }
 
 interface IntroEls {
-  anim: HTMLElement
+  fence: HTMLElement
   prompt: HTMLElement
   desc: HTMLElement
   pipEls: HTMLElement[]
@@ -145,7 +186,7 @@ function renderIntro(els: IntroEls, state: GameState): void {
   const step = state.intro.step
 
   els.prompt.hidden = !inIntro || step !== 'prompt'
-  els.anim.hidden = !inIntro || step !== 'animation'
+  els.fence.hidden = !inIntro
   // The description is never `hidden` - an element coming out of display:none
   // can't transition, and it would snap to full opacity instead of fading in.
 
@@ -202,6 +243,19 @@ function renderOverlay(
     state.loseReason === 'abandoned'
       ? 'you cried too much - nobody came'
       : 'nobody came in time'
+}
+
+/** Black cut between the intro and the night: out over the door, back in on the room. */
+function renderFade(el: HTMLElement, state: GameState): void {
+  let opacity = 0
+
+  if (state.phase === 'intro' && state.intro.step === 'fadeOut') {
+    opacity = clamp01(state.intro.stepTime / config.stageFadeTime)
+  } else if (state.phase === 'playing') {
+    opacity = 1 - clamp01(state.phaseTime / config.stageFadeTime)
+  }
+
+  el.style.opacity = String(opacity)
 }
 
 function debugText(state: GameState): string {
