@@ -4,8 +4,13 @@ import type { GameState } from '../game/state.ts'
 // before it is snapped back into place.
 const MAX_DRIFT = 0.1
 
+// Everything but footsteps is turned down so footsteps reads louder in the mix
+// (an <audio> element can't go above 1.0, so relative volume is the only lever).
+const QUIET_VOLUME = 0.75
+
 const AMBIENCE = `${import.meta.env.BASE_URL}audio/ambienceSCARY.ogg`
 const MONSTER_SEQ = `${import.meta.env.BASE_URL}audio/animationseq.ogg`
+const BABY_AUDIO = `${import.meta.env.BASE_URL}audio/baby/`
 
 export interface Sound {
   update(state: GameState): void
@@ -19,44 +24,96 @@ export function createSound(): Sound {
   const ambience = load(AMBIENCE)
   ambience.loop = true
   const monsterSeq = load(MONSTER_SEQ)
+  const footsteps = load(`${BABY_AUDIO}footsteps.mp3`, 1)
+
+  const doorOpen = load(`${BABY_AUDIO}dooropen.mp3`)
+  const doorClose = load(`${BABY_AUDIO}doorclose.mp3`)
+  // Parents leave shortly after arriving - chain the close off the open clip
+  // ending rather than guessing a delay.
+  doorOpen.addEventListener('ended', () => doorClose.play().catch(() => {}))
+
+  const cryGood = [1, 2, 3, 4].map((n) => load(`${BABY_AUDIO}babycry${n}.mp3`))
+  const cryMessedUp = load(`${BABY_AUDIO}babycry5.mp3`)
+
+  let lastPressAt = 0
+  let wasThreatActive = false
 
   return {
     update(state) {
       setPlaying(ambience, state.phase === 'playing')
 
-      const { active, proximity, approachTime } = state.threat
+      playCryOnNewPress(state)
+      syncThreatAudio(state)
 
-      // On a loss the monster has arrived and the sequence is already at its
-      // end - let it ring out rather than cutting the last few milliseconds.
-      if (state.phase === 'lost' && active) return
-
-      if (state.phase !== 'playing' || !active) {
-        stop(monsterSeq)
-        return
+      // The threat clears only when the parents actually answer the call
+      // (a loss leaves it active), so this edge means help just arrived.
+      if (wasThreatActive && !state.threat.active && state.phase === 'playing') {
+        doorOpen.currentTime = 0
+        doorOpen.play().catch(() => {})
       }
+      wasThreatActive = state.threat.active
+    },
+  }
 
-      // The approach time is rolled per monster, so the clip is stretched to
-      // fit it: it starts as the monster appears and ends as it reaches the baby.
-      const duration = monsterSeq.duration
-      if (!Number.isFinite(duration)) return // metadata not loaded yet
+  function playCryOnNewPress(state: GameState): void {
+    if (state.call.lastPressAt === lastPressAt) return
+    const isNewPress = state.call.lastPressAt !== 0
+    lastPressAt = state.call.lastPressAt
+    if (!isNewPress) return
 
-      monsterSeq.playbackRate = duration / approachTime
+    // Only cry for presses that actually feed the call: the intro rehearsal,
+    // or a real call while a monster is listening.
+    const callMatters =
+      (state.phase === 'intro' && state.intro.step === 'prompt') ||
+      (state.phase === 'playing' && state.threat.active)
+    if (!callMatters) return
+
+    const messedUp =
+      state.call.lastQuality === 'fast' || state.call.lastQuality === 'slow'
+    const clip = messedUp
+      ? cryMessedUp
+      : cryGood[Math.floor(Math.random() * cryGood.length)]
+    clip.currentTime = 0
+    clip.play().catch(() => {})
+  }
+
+  function syncThreatAudio(state: GameState): void {
+    const { active, proximity, approachTime } = state.threat
+
+    // On a loss the monster has arrived and the sequence is already at its
+    // end - let it ring out rather than cutting the last few milliseconds.
+    if (state.phase === 'lost' && active) return
+
+    if (state.phase !== 'playing' || !active) {
+      stop(monsterSeq)
+      stop(footsteps)
+      return
+    }
+
+    // The approach time is rolled per monster, so both clips are stretched to
+    // fit it: they start as the monster appears and end as it reaches the baby.
+    for (const clip of [monsterSeq, footsteps]) {
+      const duration = clip.duration
+      if (!Number.isFinite(duration)) continue // metadata not loaded yet
+
+      clip.playbackRate = duration / approachTime
       const expected = proximity * duration
-      if (Math.abs(monsterSeq.currentTime - expected) > MAX_DRIFT) {
+      if (Math.abs(clip.currentTime - expected) > MAX_DRIFT) {
         // Catches up after a frame hitch (the loop clamps dt, the audio clock doesn't).
-        monsterSeq.currentTime = expected
+        clip.currentTime = expected
       }
       // If the clip beats the monster by a hair, don't let play() rewind it to the start.
-      if (!monsterSeq.ended) setPlaying(monsterSeq, true)
-    },
+      if (!clip.ended) setPlaying(clip, true)
+    }
   }
 }
 
-function load(src: string): HTMLAudioElement {
+function load(src: string, volume = QUIET_VOLUME): HTMLAudioElement {
   const audio = new Audio(src)
   audio.preload = 'auto'
   // Keeps the stretched monster sequence at its authored pitch.
   audio.preservesPitch = true
+  audio.volume = volume
   return audio
 }
 
