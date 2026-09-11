@@ -3,6 +3,8 @@ import type { GameState } from '../game/state.ts'
 
 const PRESS_FLASH = 0.15 // seconds the baby reacts to a press
 const SHAKE_MAX = 24 // px of room shake as the monster reaches the baby (see .room inset)
+const CLAP_DURATION = 1.2 // seconds the parents-answered clap plays before returning to idle
+const CLAP_FRAME_TIME = 0.18 // seconds per clap frame (Clap1/Clap2 alternate)
 
 // BASE_URL keeps these public/ paths valid if the build is served from a subfolder.
 const ROOM_CLOSED = `${import.meta.env.BASE_URL}art/room/room-closed.png`
@@ -13,6 +15,19 @@ const DOOR_FRAMES = [1, 2, 3].map(
   (n) => `${import.meta.env.BASE_URL}art/room/tutorial/door%20open%20frame${n}.png`,
 )
 const FENCE = `${import.meta.env.BASE_URL}art/room/tutorial/fence.png`
+
+const BABY_ART = `${import.meta.env.BASE_URL}art/baby/`
+
+// P1/P2/P3 are the game's escalating annoyance stages - the background art
+// (loaded separately) gets more messed up alongside them.
+type BabyStage = 'P1' | 'P2' | 'P3'
+const BABY_STAGES: BabyStage[] = ['P1', 'P2', 'P3']
+
+function babyStage(annoyance: number): BabyStage {
+  if (annoyance < 1 / 3) return 'P1'
+  if (annoyance < 2 / 3) return 'P2'
+  return 'P3'
+}
 
 export interface Scene {
   render(state: GameState, now: number): void
@@ -88,11 +103,32 @@ export function createScene(frame: HTMLElement): Scene {
     }),
   )
 
+  // Baby poses stay CSS background-image swaps rather than layers - warm the
+  // cache instead so the first swap to each one doesn't flash empty.
+  for (const stage of BABY_STAGES) {
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Idle.png`
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Up.png`
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Down.png`
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Clap1.png`
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Clap2.png`
+  }
+  new Image().src = `${BABY_ART}Baby_InBed_Cry_Up.png`
+  new Image().src = `${BABY_ART}Baby_InBed_Cry_Down.png`
+
+  let wasThreatActive = false
+  let answeredAt = -Infinity
+
   return {
     render(state, now) {
       renderRoom(room, roomImgs, state, now)
       renderMonster(monster, state)
-      renderBaby(baby, state, now)
+
+      if (wasThreatActive && !state.threat.active && state.phase === 'playing') {
+        answeredAt = now
+      }
+      wasThreatActive = state.threat.active
+
+      renderBaby(baby, state, now, answeredAt)
       renderIntro(
         { fence, prompt: introPrompt, desc: introDesc, pipEls },
         state,
@@ -161,16 +197,46 @@ function renderMonster(el: HTMLElement, state: GameState): void {
   )}px) scale(${lerp(0.35, 1.7, proximity)})`
 }
 
-function renderBaby(el: HTMLElement, state: GameState, now: number): void {
-  const awake = state.phase === 'playing' || state.phase === 'intro'
-  const crying =
-    awake &&
-    state.call.lastPressAt > 0 &&
-    now - state.call.lastPressAt < PRESS_FLASH
+function renderBaby(
+  el: HTMLElement,
+  state: GameState,
+  now: number,
+  answeredAt: number,
+): void {
+  el.classList.toggle('intro', state.phase === 'intro')
 
-  el.classList.toggle('crying', crying)
-  // A shriek reads differently from a steady cry, in the intro too - that's how
-  // the rehearsal teaches pace without punishing it.
+  if (state.phase === 'intro') {
+    // The tutorial rests on Cry_Down and flashes up to Cry_Up on each press,
+    // rather than alternating - Down reads as the idle state.
+    const pressed =
+      state.call.lastPressAt > 0 && now - state.call.lastPressAt < PRESS_FLASH
+    el.style.backgroundImage = `url("${BABY_ART}Baby_InBed_Cry_${pressed ? 'Up' : 'Down'}.png")`
+    el.classList.remove('shrieking')
+    return
+  }
+
+  const crying =
+    state.call.lastPressAt > 0 && now - state.call.lastPressAt < PRESS_FLASH
+  const clapping = now - answeredAt < CLAP_DURATION
+
+  const stage = babyStage(state.parents.annoyance)
+  let file: string
+  if (clapping) {
+    // Alternates Clap1/Clap2 for the celebration once the parents answer.
+    const frame = Math.floor((now - answeredAt) / CLAP_FRAME_TIME) % 2
+    file = `Baby_OnFloor_${stage}_Clap${frame + 1}.png`
+  } else if (crying) {
+    // Up for the first half of the press flash, Down for the second - the
+    // arms always raise before lowering, rather than alternating by press.
+    const raised = now - state.call.lastPressAt < PRESS_FLASH / 2
+    file = `Baby_OnFloor_${stage}_${raised ? 'Up' : 'Down'}.png`
+  } else {
+    file = `Baby_OnFloor_${stage}_Idle.png`
+  }
+  el.style.backgroundImage = `url("${BABY_ART}${file}")`
+
+  // A shriek reads differently from a steady cry - that's how the rehearsal
+  // teaches pace without punishing it.
   el.classList.toggle('shrieking', crying && state.call.lastQuality === 'fast')
 }
 

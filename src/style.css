@@ -88,24 +88,23 @@ body {
 
 .baby {
   position: absolute;
-  top: 700px;
-  left: 50%;
-  width: 320px;
-  height: 200px;
-  transform: translateX(-50%);
-  border-radius: 160px 160px 24px 24px;
-  background: #f0d9c4;
-  box-shadow: 0 0 0 12px rgba(255, 255, 255, 0.08);
+  inset: 0;
+  /* The art's content already runs to the very bottom of the file, so
+     shifting the whole image down by a fixed px amount is what actually
+     pushes more of it below the frame (bottom-anchoring alone maxes out
+     with nothing left to cut). */
+  background: center 718px / 43.75% auto no-repeat;
 }
 
-.baby.crying {
-  background: #ffb4a8;
-  box-shadow: 0 0 60px 20px rgba(255, 180, 168, 0.5);
+/* The tutorial's cry-in-bed art is sized/cropped separately from the main
+   game's OnFloor poses - its content sits differently in the source file. */
+.baby.intro {
+  background-position: center 571px;
+  background-size: 54.69% auto;
 }
 
 .baby.shrieking {
-  background: #ff6f5e;
-  box-shadow: 0 0 90px 36px rgba(255, 90, 70, 0.65);
+  filter: drop-shadow(0 0 40px rgba(255, 90, 70, 0.65)) saturate(1.3);
 }
 
 /* --- intro ---------------------------------------------------------------- */
