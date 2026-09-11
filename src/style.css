@@ -36,7 +36,8 @@ body {
 
 /* Oversized by more than SHAKE_MAX (scene.ts) so shaking never exposes an
    edge. The image itself (room-closed / room-open) is set by renderRoom. */
-.room {
+.room,
+.bg {
   position: absolute;
   inset: -40px;
   background: center / cover no-repeat;
@@ -204,6 +205,19 @@ body {
   font-size: 40px;
   color: #9d94b8;
   letter-spacing: 4px;
+}
+
+/* Title screen: the art (main.png, via .overlay-bg) replaces the dark tint,
+   and the hint sits below the logo instead of across it. */
+.overlay.on-art {
+  background: transparent;
+  justify-content: flex-end;
+  padding-bottom: 72px;
+}
+
+.overlay.on-art .overlay-hint {
+  color: #f2ecff;
+  text-shadow: 0 2px 12px #000;
 }
 
 .debug {

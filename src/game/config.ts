@@ -1,9 +1,9 @@
 /** Every tunable number lives here. Gameplay code must not hardcode timings. */
 export const config = {
-  nightDuration: 120, // seconds of survival needed to reach dawn
+  nightDuration: 90, // seconds of survival needed to reach dawn
   // Calm-time ranges in seconds, rolled fresh each time so monsters can't be timed.
   firstThreatDelay: { min: 3, max: 5 }, // before the first monster
-  threatInterval: { min: 2, max: 4 }, // between monsters
+  threatInterval: { min: 3, max: 5 }, // between monsters
   monsterApproachTime: { min: 3, max:5 }, // seconds from monster appearing to reaching the baby
 
   callPresses: 5, // space presses needed to summon the parents

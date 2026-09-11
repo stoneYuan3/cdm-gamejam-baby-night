@@ -7,6 +7,7 @@ const SHAKE_MAX = 24 // px of room shake as the monster reaches the baby (see .r
 // BASE_URL keeps these public/ paths valid if the build is served from a subfolder.
 const ROOM_CLOSED = `${import.meta.env.BASE_URL}art/room/room-closed.png`
 const ROOM_OPEN = `${import.meta.env.BASE_URL}art/room/room-open.png`
+const TITLE_ART = `${import.meta.env.BASE_URL}art/main.png`
 
 export interface Scene {
   render(state: GameState, now: number): void
@@ -30,10 +31,12 @@ export function createScene(frame: HTMLElement): Scene {
       <div class="pips"></div>
     </div>
     <p class="intro-desc"></p>
+    <div class="overlay-bg bg"></div>
     <div class="overlay"><p class="overlay-title"></p><p class="overlay-hint"></p></div>
     <div class="debug"></div>
   `
 
+  const overlayBg = frame.querySelector<HTMLElement>('.overlay-bg')!
   const room = frame.querySelector<HTMLElement>('.room')!
   const monster = frame.querySelector<HTMLElement>('.monster')!
   const baby = frame.querySelector<HTMLElement>('.baby')!
@@ -62,6 +65,8 @@ export function createScene(frame: HTMLElement): Scene {
 
   debug.hidden = !config.debugOverlay
 
+  overlayBg.style.backgroundImage = `url("${TITLE_ART}")`
+
   // Preload, so the first time the door opens it doesn't flash an empty frame.
   new Image().src = ROOM_OPEN
 
@@ -74,7 +79,7 @@ export function createScene(frame: HTMLElement): Scene {
         { anim: introAnim, prompt: introPrompt, desc: introDesc, pipEls },
         state,
       )
-      renderOverlay(overlay, overlayTitle, overlayHint, state)
+      renderOverlay(overlay, overlayBg, overlayTitle, overlayHint, state)
 
       if (config.debugOverlay) {
         debug.textContent = debugText(state)
@@ -162,10 +167,18 @@ function renderIntro(els: IntroEls, state: GameState): void {
 
 function renderOverlay(
   overlay: HTMLElement,
+  bg: HTMLElement,
   title: HTMLElement,
   hint: HTMLElement,
   state: GameState,
 ): void {
+  // The title art already carries the game's name, so the title text steps
+  // aside and the hint drops below the logo (see .overlay.on-art).
+  const onArt = state.phase === 'title'
+  bg.hidden = !onArt
+  overlay.classList.toggle('on-art', onArt)
+  title.hidden = onArt
+
   if (state.phase === 'playing' || state.phase === 'intro') {
     overlay.hidden = true
     return
@@ -174,7 +187,6 @@ function renderOverlay(
   overlay.hidden = false
 
   if (state.phase === 'title') {
-    title.textContent = 'baby night'
     hint.textContent = 'press space to fall asleep'
     return
   }
