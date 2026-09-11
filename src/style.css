@@ -89,7 +89,7 @@ body {
 .baby {
   position: absolute;
   inset: 0;
-  background: bottom center / cover no-repeat;
+  background: bottom center / 50% auto no-repeat;
 }
 
 .baby.shrieking {
