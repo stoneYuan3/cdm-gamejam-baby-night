@@ -89,7 +89,18 @@ body {
 .baby {
   position: absolute;
   inset: 0;
-  background: bottom center / 50% auto no-repeat;
+  /* The art's content already runs to the very bottom of the file, so
+     shifting the whole image down by a fixed px amount is what actually
+     pushes more of it below the frame (bottom-anchoring alone maxes out
+     with nothing left to cut). */
+  background: center 718px / 43.75% auto no-repeat;
+}
+
+/* The tutorial's cry-in-bed art is sized/cropped separately from the main
+   game's OnFloor poses - its content sits differently in the source file. */
+.baby.intro {
+  background-position: center 586px;
+  background-size: 54.69% auto;
 }
 
 .baby.shrieking {

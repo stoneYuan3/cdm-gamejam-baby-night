@@ -107,6 +107,8 @@ export function createScene(frame: HTMLElement): Scene {
   // cache instead so the first swap to each one doesn't flash empty.
   for (const stage of BABY_STAGES) {
     new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Idle.png`
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Up.png`
+    new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Down.png`
     new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Clap1.png`
     new Image().src = `${BABY_ART}Baby_OnFloor_${stage}_Clap2.png`
   }
@@ -201,11 +203,20 @@ function renderBaby(
   now: number,
   answeredAt: number,
 ): void {
-  const awake = state.phase === 'playing' || state.phase === 'intro'
+  el.classList.toggle('intro', state.phase === 'intro')
+
+  if (state.phase === 'intro') {
+    // The tutorial rests on Cry_Down and flashes up to Cry_Up on each press,
+    // rather than alternating - Down reads as the idle state.
+    const pressed =
+      state.call.lastPressAt > 0 && now - state.call.lastPressAt < PRESS_FLASH
+    el.style.backgroundImage = `url("${BABY_ART}Baby_InBed_Cry_${pressed ? 'Up' : 'Down'}.png")`
+    el.classList.remove('shrieking')
+    return
+  }
+
   const crying =
-    awake &&
-    state.call.lastPressAt > 0 &&
-    now - state.call.lastPressAt < PRESS_FLASH
+    state.call.lastPressAt > 0 && now - state.call.lastPressAt < PRESS_FLASH
   const clapping = now - answeredAt < CLAP_DURATION
 
   const stage = babyStage(state.parents.annoyance)
@@ -215,16 +226,17 @@ function renderBaby(
     const frame = Math.floor((now - answeredAt) / CLAP_FRAME_TIME) % 2
     file = `Baby_OnFloor_${stage}_Clap${frame + 1}.png`
   } else if (crying) {
-    // Flaps between the two cry frames on each press, so a fast call reads
-    // as a frantic flail rather than a static held pose.
-    file = `Baby_InBed_Cry_${state.call.presses % 2 === 0 ? 'Up' : 'Down'}.png`
+    // Up for the first half of the press flash, Down for the second - the
+    // arms always raise before lowering, rather than alternating by press.
+    const raised = now - state.call.lastPressAt < PRESS_FLASH / 2
+    file = `Baby_OnFloor_${stage}_${raised ? 'Up' : 'Down'}.png`
   } else {
     file = `Baby_OnFloor_${stage}_Idle.png`
   }
   el.style.backgroundImage = `url("${BABY_ART}${file}")`
 
-  // A shriek reads differently from a steady cry, in the intro too - that's how
-  // the rehearsal teaches pace without punishing it.
+  // A shriek reads differently from a steady cry - that's how the rehearsal
+  // teaches pace without punishing it.
   el.classList.toggle('shrieking', crying && state.call.lastQuality === 'fast')
 }
 
