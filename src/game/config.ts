@@ -1,6 +1,6 @@
 /** Every tunable number lives here. Gameplay code must not hardcode timings. */
 export const config = {
-  nightDuration: 60, // seconds of survival needed to reach dawn
+  nightDuration: 45, // seconds of survival needed to reach dawn
   // Calm-time ranges in seconds, rolled fresh each time so monsters can't be timed.
   firstThreatDelay: { min: 3, max: 5 }, // before the first monster
   threatInterval: { min: 3, max: 5 }, // between monsters
@@ -33,7 +33,7 @@ export const config = {
   parentFrameTime: 0.12,
   parentInTime: 2.88, // 24 parent frames * parentFrameTime
 
-  debugOverlay: true, // dev-only readout; set false before submitting
+  debugOverlay: false, // dev-only readout; set false before submitting
 
   // 0..1 per clip. An <audio> element can't go above 1.0, so relative volume
   // is the only mixing lever - footsteps stays loudest, everything else is
