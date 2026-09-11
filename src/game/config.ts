@@ -24,6 +24,15 @@ export const config = {
   introTextFadeOut: 0.5,
   stageFadeTime: 1, // seconds for the intro's fade to black and the night's fade back in
 
+  // Aftermath: after a successful call, the monster vanishes in smoke, then a
+  // parent checks on the baby, before the calm countdown to the next monster
+  // starts. Keep frameCount * frameTime in sync with the frame arrays in
+  // scene.ts (same convention as introDoorFrameTime/introAnimationTime above).
+  smokeFrameTime: 0.2,
+  monsterGoneTime: 0.6, // 3 smoke frames * smokeFrameTime
+  parentFrameTime: 0.12,
+  parentInTime: 2.88, // 24 parent frames * parentFrameTime
+
   debugOverlay: true, // dev-only readout; set false before submitting
 
   // 0..1 per clip. An <audio> element can't go above 1.0, so relative volume
@@ -33,7 +42,6 @@ export const config = {
     ambience: 0.75,
     monsterSeq: 0.75,
     footsteps: 1,
-    doorOpen: 0.75,
     doorClose: 0.75,
     cryGood: 0.3, // a normal-paced call
     cryMessedUp: 1, // too-fast press - the louder, more shrieking cry

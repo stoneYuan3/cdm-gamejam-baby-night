@@ -1,5 +1,5 @@
 import { config } from '../game/config.ts'
-import type { GameState } from '../game/state.ts'
+import type { AftermathStep, GameState } from '../game/state.ts'
 
 // Seconds the monster sequence may wander from the monster's actual progress
 // before it is snapped back into place.
@@ -23,11 +23,7 @@ export function createSound(): Sound {
   const monsterSeq = load(MONSTER_SEQ, config.volume.monsterSeq)
   const footsteps = load(`${BABY_AUDIO}footsteps.mp3`, config.volume.footsteps)
 
-  const doorOpen = load(`${BABY_AUDIO}dooropen.mp3`, config.volume.doorOpen)
   const doorClose = load(`${BABY_AUDIO}doorclose.mp3`, config.volume.doorClose)
-  // Parents leave shortly after arriving - chain the close off the open clip
-  // ending rather than guessing a delay.
-  doorOpen.addEventListener('ended', () => doorClose.play().catch(() => {}))
 
   const cryGood = [1, 2, 3, 4].map((n) =>
     load(`${BABY_AUDIO}babycry${n}.mp3`, config.volume.cryGood),
@@ -35,7 +31,7 @@ export function createSound(): Sound {
   const cryMessedUp = load(`${BABY_AUDIO}babycry5.mp3`, config.volume.cryMessedUp)
 
   let lastPressAt = 0
-  let wasThreatActive = false
+  let wasAftermathStep: AftermathStep = 'none'
 
   return {
     update(state) {
@@ -44,13 +40,13 @@ export function createSound(): Sound {
       playCryOnNewPress(state)
       syncThreatAudio(state)
 
-      // The threat clears only when the parents actually answer the call
-      // (a loss leaves it active), so this edge means help just arrived.
-      if (wasThreatActive && !state.threat.active && state.phase === 'playing') {
-        doorOpen.currentTime = 0
-        doorOpen.play().catch(() => {})
+      // The parent-check animation ends with the door swinging shut - fires
+      // exactly on that last frame, as the step hands back to 'none'.
+      if (wasAftermathStep === 'parentIn' && state.aftermath.step === 'none') {
+        doorClose.currentTime = 0
+        doorClose.play().catch(() => {})
       }
-      wasThreatActive = state.threat.active
+      wasAftermathStep = state.aftermath.step
     },
   }
 
